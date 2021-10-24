@@ -1,70 +1,42 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdbool.h>
+/* Define which PAM interfaces we provide */
+#define PAM_SM_ACCOUNT
+#define PAM_SM_AUTH
+#define PAM_SM_PASSWORD
+#define PAM_SM_SESSION
+
+/* Include PAM headers */
 #include <security/pam_appl.h>
+#include <security/pam_modules.h>
 
-// bool auth_user(const char *user, const char *password)
-// {
-// 	FILE *f = fopen("users", "r");
-// 	char content[1024];
-// 	int pos = 0;
-// 	bool authenticated = false;
+/* PAM entry point for session creation */
+int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+    return(PAM_IGNORE);
+}
 
-// 	int c;
-// 	/* Reading the file until EOF and filling content */
-// 	while ((c = fgetc(f)) != EOF) {
-// 		content[pos++] = c;
-// 	}
+/* PAM entry point for session cleanup */
+int pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+    return(PAM_IGNORE);
+}
 
-// 	char *userfield = strtok(content, ":");
-// 	char *passfield = strtok(NULL, "\n");
+/* PAM entry point for accounting */
+int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+    return(PAM_IGNORE);
+}
 
-// 	while (1) {
-// 		if (strcmp(user, userfield) == 0 &&
-// 		    strcmp(password, passfield) == 0) {
-// 			authenticated = true;
-// 			break;
-// 		}
-// 		userfield = strtok(NULL, ":");
-// 		if (userfield == NULL)
-// 			break;
-// 		passfield = strtok(NULL, "\n");
-// 		if (passfield == NULL)
-// 			break;
-// 	}
-// 	return authenticated;
-// }
+/* PAM entry point for authentication verification */
+int pam_sm_authentication(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+    return(PAM_IGNORE);
+}
 
-int pam_sm_authenticate(pam_handle_t *handle, int flags, int argc, const char **argv) {
-    int pam_code;
+/* 
+    PAM entry point for setting user credentials (that is, to actually
+    establish the authenticated user;s credential to the service provider)
+*/
+int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+    return(PAM_IGNORE);
+}
 
-    const char *username = NULL;
-    const char *password = NULL;
-
-    pam_code = pam_get_user(handle, &username, "USERNAME: ");
-    if (pam_code != PAM_SUCCESS) {
-        fprintf(stderr, "Can't get username");
-        return PAM_PERM_DENIED;
-    }
-
-    // pam_code = pam_get_authtok(handle, PAM_AUTHTOK, &password, "PASSWORDL ");
-    // if (pam_code != PAM_SUCCESS) {
-    //     fprintf(stderr, "Can't get password");
-    //     return PAM_PERM_DENIED;
-    // }
-
-    // if (flags & PAM_DISALLOW_NULL_AUTHTOK) {
-    //     if (password == NULL || strcmp(password, "") == 0) {
-    //         fprintf(stderr, "Null authenticatin token is not allowed!");
-    //         return PAM_PERM_DENIED;
-    //     }
-    // }
-
-    // if (auth_user(username, password)) {
-        printf("Welcome, user");
-        return PAM_SUCCESS;
-    // } else {
-    //     fprintf(stderr, "Wrong username or password");
-    //     return PAM_PERM_DENIED;
-    // }
+/* PAM entry point for authentication token (password) changes */
+int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+    return(PAM_IGNORE);
 }
