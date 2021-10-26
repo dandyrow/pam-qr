@@ -4,9 +4,14 @@
 #define PAM_SM_PASSWORD
 #define PAM_SM_SESSION
 
+#include <unistd.h>
+#include <pwd.h>
+#include <stdio.h>
+#include <string.h>
+
 /* Include PAM headers */
-#include <security/pam_appl.h>
 #include <security/pam_modules.h>
+#include <security/pam_appl.h>
 
 /* PAM entry point for session creation */
 int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
@@ -25,7 +30,23 @@ int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 /* PAM entry point for authentication verification */
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    return(PAM_IGNORE);
+    struct passwd *pw = NULL, pw_s;
+    struct pam_message pmsg;    
+    const char *user = NULL;
+    char buffer[1024], checkfile[1024];
+    int pgu_ret, gpn_ret, snp_ret, a_ret;
+
+    pgu_ret = pam_get_user(pamh, &user, NULL);
+    if (pgu_ret != PAM_SUCCESS || user == NULL) {
+        return(PAM_IGNORE);
+    }
+
+    strcpy(pmsg.msg, "Hello, Welcome!");
+    pmsg.msg_style = PAM_TEXT_INFO;
+
+    pam_get_item(pamh, PAM_CONV, &pmsg);
+    
+    return(PAM_SUCCESS);
 }
 
 /* 
