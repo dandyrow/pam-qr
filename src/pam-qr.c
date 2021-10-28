@@ -30,28 +30,50 @@ int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
 
 /* PAM entry point for authentication verification */
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    struct passwd *pw = NULL, pw_s;
-    struct pam_message pmsg;    
+    struct pam_conv *conv;
+    const struct pam_message *pmsg[1];
+    struct pam_message msg[1];  
+    struct pam_response *resp = NULL;  
     const char *user = NULL;
     char buffer[1024], checkfile[1024];
-    int pgu_ret, gpn_ret, snp_ret, a_ret;
+    int pgu_ret, gpn_ret, snp_ret, a_ret, retval;
 
     pgu_ret = pam_get_user(pamh, &user, NULL);
     if (pgu_ret != PAM_SUCCESS || user == NULL) {
         return(PAM_IGNORE);
     }
 
-    strcpy(pmsg.msg, "Hello, Welcome!");
-    pmsg.msg_style = PAM_TEXT_INFO;
+    retval = pam_get_item(pamh, PAM_CONV, (const void **) &conv);
+    if (retval != PAM_SUCCESS) {
+        return retval;
+    }
 
-    pam_get_item(pamh, PAM_CONV, &pmsg);
+    if (!conv || !conv->conv) {
+        return PAM_CONV_ERR;
+    }
+
+    pmsg[0] = &msg[0];
+    msg[0].msg = "Welcome to the system!";
+    msg[0].msg_style = PAM_TEXT_INFO;
+    retval = conv->conv(1, pmsg, &resp, conv->appdata_ptr);
+
+    if (retval != PAM_SUCCESS) {
+        return retval;
+    }
+
+    if (resp) {
+        if (resp->resp) {
+            free(resp-resp);
+        }
+        free(resp);
+    }
     
     return(PAM_SUCCESS);
 }
 
 /* 
     PAM entry point for setting user credentials (that is, to actually
-    establish the authenticated user;s credential to the service provider)
+    establish the authenticated user's credential to the service provider)
 */
 int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv) {
     return(PAM_IGNORE);
