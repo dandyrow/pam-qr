@@ -2,12 +2,9 @@
 #define PRINT_QR_PRIV_H
 
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
 
 // Include public interface of this program
-#include "printqr.h"
+#include "qr_to_string.h"
 
 /* Define ANSI character codes and sizes for QR code printing */
 #define QR_BLACK_CHAR "\033[40m"
