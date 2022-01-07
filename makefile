@@ -8,7 +8,7 @@ printqr: src/printqr.c
 	$(CC) $(CFLAGS) -o printqr src/printqr.c -lqrencode
 
 test_qr_to_string: src/test/test_qr_to_string.c src/qr_to_string.c
-	$(CC) $(CFLAGS) -o printQR src/test/test_qr_to_string.c src/qr_to_string.c -lqrencode
+	$(CC) $(CFLAGS) -o printqr src/test/test_qr_to_string.c src/qr_to_string.c -lqrencode
 
 test_api: src/test/test_api.c
 	$(CC) $(CFLAGS) -o test_api src/test/test_api.c -lcurl -ljson-c
@@ -16,4 +16,4 @@ test_api: src/test/test_api.c
 clean:
 	rm pam_qr.so
 	rm test_api
-	rm printQR
+	rm printqr

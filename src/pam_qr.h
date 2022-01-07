@@ -31,8 +31,11 @@ The license can be found in the root git repo in the LICENSE file.
 #include <security/pam_modules.h>
 #include <security/pam_appl.h>
 
+#include <curl/curl.h>
+
 /* Include QR Code generator library */
-#include "printqr.h"
+#include "qr_to_string.h"
+#include "expandable_string.h"
 
 /* Define which PAM interfaces we provide */
 #define PAM_SM_ACCOUNT

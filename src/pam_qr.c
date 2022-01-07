@@ -42,6 +42,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     const char *qrcode;
     const char *user = NULL;
     QRcode *encoded_qr;
+    string auth_str;
 
     retval = pam_get_user(pamh, &user, NULL);
     if (retval != PAM_SUCCESS || user == NULL) {
@@ -60,9 +61,13 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     }
 
     qrcode = PrintQR_generate_qr_code_string(encoded_qr);
-
-    display_message_to_user(pamh, (const char *) "Welcome!\n");
+    
     display_message_to_user(pamh, qrcode);
+    display_message_to_user2(pamh, "Please scan QR then press enter when ready");
+    
+    request_auth_string_from_api(&auth_str);
+    //TODO: Parse JSON
+    //TODO: Use parsed json to verfy if user is authenticated
     
     return(PAM_SUCCESS);
 }
@@ -106,4 +111,56 @@ int display_message_to_user(pam_handle_t *pamh, const char *message) {
     }
 
     return retval;
+}
+
+int display_message_to_user2(pam_handle_t *pamh, const char *message) {
+    int retval;
+    struct pam_conv *pam_conv;
+    struct pam_message msg[1];
+    const struct pam_message *pmsg[1];
+    struct pam_response *resp = NULL;
+
+    retval = pam_get_item(pamh, PAM_CONV, (const void **) &pam_conv);
+    if (retval != PAM_SUCCESS) {
+        return retval;
+    }
+
+    pmsg[0] = &msg[0];
+    msg[0].msg = message;
+    msg[0].msg_style = PAM_PROMPT_ECHO_ON;
+    retval = pam_conv->conv(1, pmsg, &resp, pam_conv->appdata_ptr);
+
+    if (resp) {
+        if (resp->resp) {
+            free(resp->resp);
+        }
+        free(resp);
+    }
+
+    return retval;
+}
+
+int request_auth_string_from_api(string *auth_str) {
+    CURL *curl;
+    CURLcode result;
+
+    curl = curl_easy_init();
+    if (!curl) {
+        //TODO: Handle curl error
+    }
+
+    ExpandableString_init_string(auth_str);
+
+    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8080/auth");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, );
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, auth_str);
+    //TODO: Set timeout for request
+
+    result = curl_easy_perform(curl);
+    if (result != CURLE_OK) {
+        //TODO: Handle curl error
+    }
+
+    curl_easy_cleanup(curl);
+    return EXIT_SUCCESS;
 }
