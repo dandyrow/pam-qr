@@ -43,6 +43,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     const char *user = NULL;
     QRcode *encoded_qr;
     string auth_str;
+    struct json_object *parsed_auth_str;
 
     retval = pam_get_user(pamh, &user, NULL);
     if (retval != PAM_SUCCESS || user == NULL) {
@@ -65,11 +66,13 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     display_message_to_user(pamh, qrcode);
     display_message_to_user2(pamh, "Please scan QR then press enter when ready");
     
+    ExpandableString_init_string(&auth_str);
     request_auth_string_from_api(&auth_str);
-    //TODO: Parse JSON
-    //TODO: Use parsed json to verfy if user is authenticated
-    
-    return(PAM_SUCCESS);
+    parsed_auth_str = json_tokener_parse(auth_str.ptr);
+    retval = check_authentication(parsed_auth_str);
+
+    free(auth_str.ptr);
+    return(retval);
 }
 
 /* 
@@ -149,10 +152,8 @@ int request_auth_string_from_api(string *auth_str) {
         //TODO: Handle curl error
     }
 
-    ExpandableString_init_string(auth_str);
-
-    curl_easy_setopt(curl, CURLOPT_URL, "http://localhost:8080/auth");
-    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, );
+    curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.0.104:8080/auth");
+    curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, store_auth_str_in_var);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, auth_str);
     //TODO: Set timeout for request
 
@@ -163,4 +164,25 @@ int request_auth_string_from_api(string *auth_str) {
 
     curl_easy_cleanup(curl);
     return EXIT_SUCCESS;
+}
+
+size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, string *auth_str) {
+    ExpandableString_insert_at_end(buffer, itemsize * nitems, auth_str);
+    return itemsize * nitems;
+}
+
+int check_authentication(struct json_object *parsed_auth_str) {
+    int retval;
+    struct json_object *authenticated;
+
+    retval = json_object_object_get_ex(parsed_auth_str, "authenticated", &authenticated);
+    if (retval != 1) {
+        return PAM_AUTH_ERR;
+    }
+
+    if (strncmp(json_object_get_string(authenticated), "true", 4) == 0) {
+        return PAM_SUCCESS;
+    } else {
+        return PAM_AUTH_ERR;
+    }
 }

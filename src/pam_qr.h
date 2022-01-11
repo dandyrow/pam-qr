@@ -33,6 +33,8 @@ The license can be found in the root git repo in the LICENSE file.
 
 #include <curl/curl.h>
 
+#include <json-c/json.h>
+
 /* Include QR Code generator library */
 #include "qr_to_string.h"
 #include "expandable_string.h"
@@ -55,5 +57,9 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv);
 int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv);
 int display_message_to_user(pam_handle_t *pamh, const char *message);
+int display_message_to_user2(pam_handle_t *pamh, const char *message); //TODO: Decide on pam_conv implimentation
+int request_auth_string_from_api(string *auth_str);
+size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, string *auth_str);
+int check_authentication(struct json_object *parsed_auth_str);
 
 #endif

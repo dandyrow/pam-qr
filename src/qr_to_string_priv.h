@@ -2,6 +2,8 @@
 #define PRINT_QR_PRIV_H
 
 #include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
 // Include public interface of this program
 #include "qr_to_string.h"

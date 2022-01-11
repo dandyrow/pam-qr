@@ -1,4 +1,5 @@
 #include "expandable_string.h"
+#include <string.h>
 
 int ExpandableString_init_string(string *s) {
     s->len = 0;
