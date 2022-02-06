@@ -2,7 +2,7 @@
 
 /* Modified code from libqrencode/qrenc.c licensed under LGPLv2.1 source found
 here: https://github.com/fukuchi/libqrencode */
-char* PrintQR_generate_qr_code_string(const QRcode *qrdata) {
+char* QRString_generate_qr_code_string(const QRcode *qrdata) {
     int fullwidth, buffer_size, qrcode_size;
     char *buffer;
     char *qrcode;

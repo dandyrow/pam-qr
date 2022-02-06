@@ -61,7 +61,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         exit(errno);
     }
 
-    qrcode = PrintQR_generate_qr_code_string(encoded_qr);
+    qrcode = QRString_generate_qr_code_string(encoded_qr);
     
     display_message_to_user(pamh, qrcode);
     display_message_to_user2(pamh, "Please scan QR then press enter when ready");
