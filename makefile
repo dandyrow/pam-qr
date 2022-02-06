@@ -1,16 +1,39 @@
 CC=gcc
 CFLAGS=-g -Wall -Wextra
+LDLIBS=-lqrencode -lcurl -ljson-c
 
-pam_qr: src/pam_qr.c src/qr_to_string.c
-	$(CC) $(CFLAGS) -fPIC -fstack-protector -shared -o pam_qr.so src/pam_qr.c src/qr_to_string.c -lcurl -lqrencode -ljson-c
+# Directories
+SRCDIR=src
+OBJDIR=obj
+LIBDIR=lib
+TESTDIR=test
+TESTBINDIR=$(TESTDIR)/bin
+BINDIR=bin
 
-test_qr_to_string: src/test/test_qr_to_string.c src/qr_to_string.c
-	$(CC) $(CFLAGS) -o printqr src/test/test_qr_to_string.c src/qr_to_string.c -lqrencode
+# mkdir rules to make sure they exist
+$(OBJDIR):
+	mkdir $@
 
-test_api: src/test/test_api.c src/expandable_string.c
-	$(CC) $(CFLAGS) -o test_api src/test/test_api.c src/expandable_string.c -lcurl -ljson-c
+$(LIBDIR):
+	mkdir $@
+
+$(TESTBINDIR):
+	mkdir $@
+
+# List of src and obj files
+SRCS=$(wildcard $(SRCDIR)/*.c)
+OBJS=$(patsubst $(SRCDIR)/%.c, $(OBJDIR)/%.o, $(SRCS))
+
+# Compile x.c to x.o without linking
+$(OBJDIR)/%.o: $(SRCDIR)/%.c $(SRCDIR)/%.h $(OBJDIR)
+	$(CC) $(CFLAGS) -c $< -o $@ 
+
+pam_qr: CFLAGS+=-fPIC -fstack-protector -shared
+pam_qr: $(OBJS) $(LIBDIR)
+	$(CC) $(CFLAGS) $(OBJS) -o $(LIBDIR)/$@.so $(LDLIBS)
+
+expandable_string.test: $(TESTDIR)/expandable_string.test.c $(OBJDIR)/expandable_string.o $(TESTBINDIR)
+	$(CC) $(CFLAGS) $< $(OBJDIR)/expandable_string.o -o $(TESTBINDIR)/$@ -lcriterion
 
 clean:
-	rm pam_qr.so
-	rm test_api
-	rm printqr
+	rm -ir $(OBJDIR)/*.o $(LIBDIR)/*.so
