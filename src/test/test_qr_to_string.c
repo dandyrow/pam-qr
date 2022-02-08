@@ -26,8 +26,28 @@ int main(int argc, char const *argv[])
         }
         exit(errno);
     }
+    
 
-    printf(PrintQR_generate_qr_code_string(encoded_qr));
+    // for (int i = 0; i < encoded_qr->width * encoded_qr->width; i++)
+    // {
+    //     printf("%u", encoded_qr->data[i]);
+    // }
+
+        printf(QRString_generate_qr_code_string(encoded_qr));
+    // int i;
+    
+    // for (int y = 0; y < encoded_qr->width; y++)
+    // {
+    //     for (int x = 0; x < encoded_qr->width; x++) {
+    //         if ((encoded_qr->data[i] & 1) == 0) {
+    //             printf("Cell %i: White\n", i);
+    //         } else {
+    //             printf("Cell %i: Black\n", i);
+    //         }
+    //         i++;
+    //     }
+    // }
+    // printf("QR area: %i", encoded_qr->width * encoded_qr->width);
 
     return EXIT_SUCCESS;
 }
