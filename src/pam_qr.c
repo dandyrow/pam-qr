@@ -20,6 +20,7 @@ The license can be found in the root git repo in the LICENSE file.
 */
 
 #include "pam_qr.h"
+#include <syslog.h>
 
 /* PAM entry point for session creation */
 int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
@@ -45,12 +46,15 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
     string auth_str;
     struct json_object *parsed_auth_str;
 
+    openlog("pam_qr: ", LOG_ODELAY, LOG_AUTHPRIV);
+
     retval = pam_get_user(pamh, &user, NULL);
     if (retval != PAM_SUCCESS || user == NULL) {
-        return(PAM_IGNORE);
+        syslog(LOG_WARNING, "Couldn't get username");
+        return (PAM_IGNORE);
     }
 
-    encoded_qr = QRcode_encodeString((char *) "Hello world!", QR_VERSION, QR_ECLEVEL_L, QR_MODE_8, QR_CASE_SENSITIVITY);
+    encoded_qr = QRcode_encodeString((char *)"Hello world!", 0, QR_ECLEVEL_L, QR_MODE_8, QR_CASE_SENSITIVITY);
 
     if (encoded_qr == NULL) {
         if (errno == ENOMEM) {
@@ -58,18 +62,19 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         } else {
             //TODO: Output error to sys
         }
+        syslog(LOG_ALERT, "Failed to gen QR code, exiting...");
         exit(errno);
     }
 
     qrcode = QRString_generate_qr_code_string(encoded_qr);
     
-    display_message_to_user(pamh, qrcode);
-    display_message_to_user2(pamh, "Please scan QR then press enter when ready");
-    
+    display_message_to_user2(pamh, qrcode);
+    // display_message_to_user2(pamh, "\219 Please scan QR then press enter when ready █");
+
     ExpandableString_init_string(&auth_str);
     request_auth_string_from_api(&auth_str);
     parsed_auth_str = json_tokener_parse(auth_str.ptr);
-    retval = check_authentication(parsed_auth_str);
+    retval = check_authentication(pamh, user, parsed_auth_str);
 
     free(auth_str.ptr);
     return(retval);
@@ -149,17 +154,21 @@ int request_auth_string_from_api(string *auth_str) {
 
     curl = curl_easy_init();
     if (!curl) {
-        //TODO: Handle curl error
+        syslog(LOG_WARNING, "Curl init failure");
+        // TODO: Handle curl error
+        return EXIT_FAILURE;
     }
 
-    curl_easy_setopt(curl, CURLOPT_URL, "http://192.168.0.104:8080/auth");
+    curl_easy_setopt(curl, CURLOPT_URL, "http://10.9.67.150:8080/auth");
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, store_auth_str_in_var);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, auth_str);
     //TODO: Set timeout for request
 
     result = curl_easy_perform(curl);
     if (result != CURLE_OK) {
+        syslog(LOG_WARNING, "Curl perform failure");
         //TODO: Handle curl error
+        return EXIT_FAILURE;
     }
 
     curl_easy_cleanup(curl);
@@ -171,18 +180,29 @@ size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, strin
     return itemsize * nitems;
 }
 
-int check_authentication(struct json_object *parsed_auth_str) {
+int check_authentication(pam_handle_t *pamh, const char *user, struct json_object *parsed_auth_str)
+{
     int retval;
+    int retauth;
+    int retuser;
     struct json_object *authenticated;
+    struct json_object *username;
 
-    retval = json_object_object_get_ex(parsed_auth_str, "authenticated", &authenticated);
-    if (retval != 1) {
+    syslog(LOG_WARNING, "Checking auth");
+
+    retauth = json_object_object_get_ex(parsed_auth_str, "authenticated", &authenticated);
+    retuser = json_object_object_get_ex(parsed_auth_str, "username", &username);
+    if (retauth != 1 || retuser != 1)
+    {
+        syslog(LOG_WARNING, "failed to get authenticated or username from JSON");
         return PAM_AUTH_ERR;
     }
 
     if (strncmp(json_object_get_string(authenticated), "true", 4) == 0) {
+        // if (strcmp(json_object_get_string(username), user) == 0) {
         return PAM_SUCCESS;
-    } else {
-        return PAM_AUTH_ERR;
+        // }
     }
+    syslog(LOG_WARNING, "auth failure");
+    return PAM_AUTH_ERR;
 }

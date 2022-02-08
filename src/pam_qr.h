@@ -60,6 +60,6 @@ int display_message_to_user(pam_handle_t *pamh, const char *message);
 int display_message_to_user2(pam_handle_t *pamh, const char *message); //TODO: Decide on pam_conv implimentation
 int request_auth_string_from_api(string *auth_str);
 size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, string *auth_str);
-int check_authentication(struct json_object *parsed_auth_str);
+int check_authentication(pam_handle_t *pamh, const char *user, struct json_object *parsed_auth_str);
 
 #endif

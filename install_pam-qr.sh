@@ -49,19 +49,19 @@
 # gcc -Wall -Wextra -fPIC -shared -o pam_qr.so src/qrcodegen.o src/pam_qr.c -L src #-lqrcodegen
 # make pam_qr
 
-lxc file push -r src/ current-ape/root/
-lxc file push makefile current-ape/root/
+lxc file push -r src/ pam-test/root/
+lxc file push makefile pam-test/root/
 # lxc file push src/libqrcodegen.so pam-test/root/
 
-lxc exec current-ape -- make pam_qr
-lxc exec current-ape -- chown root pam_qr.so
-lxc exec current-ape -- chgrp root pam_qr.so
-lxc exec current-ape -- chmod 644 pam_qr.so
+lxc exec pam-test -- make pam_qr
+lxc exec pam-test -- chown root pam_qr.so
+lxc exec pam-test -- chgrp root pam_qr.so
+lxc exec pam-test -- chmod 644 pam_qr.so
 
 # lxc exec pam-test -- chown root libqrcodegen.so
 # lxc exec pam-test -- chgrp root libqrcodegen.so
 # lxc exec pam-test -- chmod 644 libqrcodegen.so
 # lxc exec pam-test -- ld --shared -o /usr/lib/libqrcodegen.so libqrcodegen.so
 
-lxc exec current-ape -- cp pam_qr.so /lib/x86_64-linux-gnu/security/
-lxc exec current-ape -- systemctl restart sshd
+lxc exec pam-test -- cp lib/pam_qr.so /lib/x86_64-linux-gnu/security/
+lxc exec pam-test -- systemctl restart sshd
