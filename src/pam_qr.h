@@ -22,22 +22,23 @@ The license can be found in the root git repo in the LICENSE file.
 #define PAM_QR_H
 
 /* Include standard library includes */
+#include <syslog.h>
 #include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
 
 /* Include PAM headers */
+#include <security/pam_ext.h>
 #include <security/pam_modules.h>
+#include <security/pam_modutil.h>
 #include <security/pam_appl.h>
 
+#include <tiny2fa.h>
+ 
 #include <curl/curl.h>
 
 #include <json-c/json.h>
 
-/* Include QR Code generator library */
-#include "qr_to_string.h"
-#include "expandable_string.h"
+#include "strapp.h"
+#include "gen_qr_str.h"
 
 /* Define which PAM interfaces we provide */
 #define PAM_SM_ACCOUNT
@@ -45,10 +46,7 @@ The license can be found in the root git repo in the LICENSE file.
 #define PAM_SM_PASSWORD
 #define PAM_SM_SESSION
 
-/* Define default values for encoding string to QR data */
-#define QR_VERSION 5
-#define QR_MARGIN 2
-#define QR_CASE_SENSITIVITY 1       // 1 = case sensitive, 0 = not case sensitive
+#define QR_STR_SIZE 128
 
 int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv);
 int pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv);
@@ -56,10 +54,8 @@ int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv);
 int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv);
 int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv);
-int display_message_to_user(pam_handle_t *pamh, const char *message);
-int display_message_to_user2(pam_handle_t *pamh, const char *message); //TODO: Decide on pam_conv implimentation
-int request_auth_string_from_api(string *auth_str);
-size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, string *auth_str);
-int check_authentication(pam_handle_t *pamh, const char *user, struct json_object *parsed_auth_str);
+char *request_auth_string_from_api(const char *computerId, const char *username, const int otp);
+size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, char **str);
+int check_authentication(const char *user, struct json_object *parsed_auth_str);
 
 #endif

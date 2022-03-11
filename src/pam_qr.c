@@ -1,4 +1,4 @@
-/* 
+/*
 PAM_QR. This program prompts the user with a QR code for them to scan
 using the accompanying app to allow them to authenticate.
 Copyright (C) 2021 Daniel Lowry
@@ -20,167 +20,126 @@ The license can be found in the root git repo in the LICENSE file.
 */
 
 #include "pam_qr.h"
-#include <syslog.h>
+
 
 /* PAM entry point for session creation */
-int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    return(PAM_IGNORE);
+int pam_sm_open_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+    return (PAM_IGNORE);
 }
 
 /* PAM entry point for session cleanup */
-int pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    return(PAM_IGNORE);
+int pam_sm_close_session(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+    return (PAM_IGNORE);
 }
 
 /* PAM entry point for accounting */
-int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    return(PAM_IGNORE);
+int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+    return (PAM_IGNORE);
 }
 
 /* PAM entry point for authentication verification */
-int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv) {
+int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+    if (argc != 2) {
+        pam_prompt(pamh, PAM_ERROR_MSG, NULL, "Configuration Error: Missing arguments, please contact the system administrator.");
+        return PAM_AUTHINFO_UNAVAIL;
+    }
     int retval;
     const char *qrcode;
     const char *user = NULL;
-    QRcode *encoded_qr;
-    string auth_str;
+    QRcode *encoded_qr_str;
     struct json_object *parsed_auth_str;
 
     openlog("pam_qr: ", LOG_ODELAY, LOG_AUTHPRIV);
 
     retval = pam_get_user(pamh, &user, NULL);
-    if (retval != PAM_SUCCESS || user == NULL) {
+    if (retval != PAM_SUCCESS || user == NULL)
+    {
         syslog(LOG_WARNING, "Couldn't get username");
-        return (PAM_IGNORE);
+        return retval;
     }
 
-    encoded_qr = QRcode_encodeString((char *)"Hello world!", 0, QR_ECLEVEL_L, QR_MODE_8, QR_CASE_SENSITIVITY);
+    int otp = t2_get_key(argv[1], 0);
+    char *qr_str[QR_STR_SIZE];
 
-    if (encoded_qr == NULL) {
-        if (errno == ENOMEM) {
-            //TODO: Output error to sys
-        } else {
-            //TODO: Output error to sys
-        }
-        syslog(LOG_ALERT, "Failed to gen QR code, exiting...");
-        exit(errno);
+    snprintf(qr_str, QR_STR_SIZE, "{ computerId: %s, username: %s, otp: %i }", argv[0], user, otp);
+    encoded_qr_str = gen_qr_str(qr_str);
+
+    if (encoded_qr_str == NULL)
+    {
+        syslog(LOG_ALERT, "Failed to gen QR code");
+        return PAM_AUTHINFO_UNAVAIL;
     }
 
-    qrcode = QRString_generate_qr_code_string(encoded_qr);
-    
-    display_message_to_user2(pamh, qrcode);
-    // display_message_to_user2(pamh, "\219 Please scan QR then press enter when ready █");
+    pam_prompt(pamh, PAM_PROMPT_ECHO_ON, NULL, "%sPlease scan the QR with the QR Authenticate App. If the full QR code isn't shown resize the terminal window\n", encoded_qr_str);
 
-    ExpandableString_init_string(&auth_str);
-    request_auth_string_from_api(&auth_str);
-    parsed_auth_str = json_tokener_parse(auth_str.ptr);
-    retval = check_authentication(pamh, user, parsed_auth_str);
+    char *auth_str = request_auth_string_from_api(argv[0], user, otp);
+    parsed_auth_str = json_tokener_parse(auth_str);
+    retval = check_authentication(user, parsed_auth_str);
 
-    free(auth_str.ptr);
-    return(retval);
+    return (retval);
 }
 
-/* 
+/*
     PAM entry point for setting user credentials (that is, to actually
     establish the authenticated user's credential to the service provider)
 */
-int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    return(PAM_SUCCESS);
+int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+    return (PAM_SUCCESS);
 }
 
 /* PAM entry point for authentication token (password) changes */
-int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv) {
-    return(PAM_IGNORE);
+int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
+{
+    return (PAM_IGNORE);
 }
 
-/* Display a message to the user using PAM conv function */
-int display_message_to_user(pam_handle_t *pamh, const char *message) {
-    int retval;
-    struct pam_conv *pam_conv;
-    struct pam_message msg[1];
-    const struct pam_message *pmsg[1];
-    struct pam_response *resp = NULL;
-
-    retval = pam_get_item(pamh, PAM_CONV, (const void **) &pam_conv);
-    if (retval != PAM_SUCCESS) {
-        return retval;
-    }
-
-    pmsg[0] = &msg[0];
-    msg[0].msg = message;
-    msg[0].msg_style = PAM_TEXT_INFO;
-    retval = pam_conv->conv(1, pmsg, &resp, pam_conv->appdata_ptr);
-
-    if (resp) {
-        if (resp->resp) {
-            free(resp->resp);
-        }
-        free(resp);
-    }
-
-    return retval;
-}
-
-int display_message_to_user2(pam_handle_t *pamh, const char *message) {
-    int retval;
-    struct pam_conv *pam_conv;
-    struct pam_message msg[1];
-    const struct pam_message *pmsg[1];
-    struct pam_response *resp = NULL;
-
-    retval = pam_get_item(pamh, PAM_CONV, (const void **) &pam_conv);
-    if (retval != PAM_SUCCESS) {
-        return retval;
-    }
-
-    pmsg[0] = &msg[0];
-    msg[0].msg = message;
-    msg[0].msg_style = PAM_PROMPT_ECHO_ON;
-    retval = pam_conv->conv(1, pmsg, &resp, pam_conv->appdata_ptr);
-
-    if (resp) {
-        if (resp->resp) {
-            free(resp->resp);
-        }
-        free(resp);
-    }
-
-    return retval;
-}
-
-int request_auth_string_from_api(string *auth_str) {
+char* request_auth_string_from_api(const char *computerId, const char *user, const int otp)
+{
+    char *str;
     CURL *curl;
     CURLcode result;
 
     curl = curl_easy_init();
-    if (!curl) {
+    if (!curl)
+    {
         syslog(LOG_WARNING, "Curl init failure");
         // TODO: Handle curl error
-        return EXIT_FAILURE;
+        return NULL;
     }
 
-    curl_easy_setopt(curl, CURLOPT_URL, "http://10.9.67.150:8080/auth");
+    char url_str[128];
+    snprintf(url_str, 128, "http://10.241.202.1:8080/auth?computerId=%s&username=%s&otp=%i", computerId, user, otp);
+
+    curl_easy_setopt(curl, CURLOPT_URL, url_str);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, store_auth_str_in_var);
-    curl_easy_setopt(curl, CURLOPT_WRITEDATA, auth_str);
-    //TODO: Set timeout for request
+    curl_easy_setopt(curl, CURLOPT_WRITEDATA, &str);
+    // TODO: Set timeout for request
 
     result = curl_easy_perform(curl);
-    if (result != CURLE_OK) {
+    if (result != CURLE_OK)
+    {
         syslog(LOG_WARNING, "Curl perform failure");
-        //TODO: Handle curl error
-        return EXIT_FAILURE;
+        // TODO: Handle curl error
+        return NULL;
     }
 
     curl_easy_cleanup(curl);
-    return EXIT_SUCCESS;
+    syslog(LOG_WARNING, str);
+    return str;
 }
 
-size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, string *auth_str) {
-    ExpandableString_insert_at_end(buffer, itemsize * nitems, auth_str);
+size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, char **str)
+{
+    *str = strapp(*str, buffer);
     return itemsize * nitems;
 }
 
-int check_authentication(pam_handle_t *pamh, const char *user, struct json_object *parsed_auth_str)
+int check_authentication(const char *user, struct json_object *parsed_auth_str)
 {
     int retval;
     int retauth;
@@ -198,10 +157,11 @@ int check_authentication(pam_handle_t *pamh, const char *user, struct json_objec
         return PAM_AUTH_ERR;
     }
 
-    if (strncmp(json_object_get_string(authenticated), "true", 4) == 0) {
-        // if (strcmp(json_object_get_string(username), user) == 0) {
-        return PAM_SUCCESS;
-        // }
+    if (strncmp(json_object_get_string(authenticated), "true", 4) == 0)
+    {
+        if (strcmp(json_object_get_string(username), user) == 0) {
+            return PAM_SUCCESS;
+        }
     }
     syslog(LOG_WARNING, "auth failure");
     return PAM_AUTH_ERR;
