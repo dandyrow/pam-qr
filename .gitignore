@@ -52,4 +52,7 @@ Mkfile.old
 dkms.conf
 
 # test binaries
-*.test
+test/bin/*
+
+.vscode/*
+Tiny2FA/*
