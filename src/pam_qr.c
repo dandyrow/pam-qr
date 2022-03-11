@@ -48,9 +48,8 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         return PAM_AUTHINFO_UNAVAIL;
     }
     int retval;
-    const char *qrcode;
     const char *user = NULL;
-    QRcode *encoded_qr_str;
+    char *encoded_qr_str;
     struct json_object *parsed_auth_str;
 
     openlog("pam_qr: ", LOG_ODELAY, LOG_AUTHPRIV);
@@ -62,8 +61,8 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         return retval;
     }
 
-    int otp = t2_get_key(argv[1], 0);
-    char *qr_str[QR_STR_SIZE];
+    int otp = t2_get_key((const unsigned char *)argv[1], 0);
+    char qr_str[QR_STR_SIZE];
 
     snprintf(qr_str, QR_STR_SIZE, "{ computerId: %s, username: %s, otp: %i }", argv[0], user, otp);
     encoded_qr_str = gen_qr_str(qr_str);
@@ -76,7 +75,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
     pam_prompt(pamh, PAM_PROMPT_ECHO_ON, NULL, "%sPlease scan the QR with the QR Authenticate App. If the full QR code isn't shown resize the terminal window\n", encoded_qr_str);
 
-    char *auth_str = request_auth_string_from_api(argv[0], user, otp);
+    char *auth_str = request_auth_string_from_api(argv[2], argv[0], user, otp);
     parsed_auth_str = json_tokener_parse(auth_str);
     retval = check_authentication(user, parsed_auth_str);
 
@@ -98,7 +97,7 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
     return (PAM_IGNORE);
 }
 
-char* request_auth_string_from_api(const char *computerId, const char *user, const int otp)
+char* request_auth_string_from_api(const char *authUrl, const char *computerId, const char *user, const int otp)
 {
     char *str;
     CURL *curl;
@@ -113,7 +112,7 @@ char* request_auth_string_from_api(const char *computerId, const char *user, con
     }
 
     char url_str[128];
-    snprintf(url_str, 128, "http://10.241.202.1:8080/auth?computerId=%s&username=%s&otp=%i", computerId, user, otp);
+    snprintf(url_str, 128, "http://%s/auth?computerId=%s&username=%s&otp=%i", authUrl, computerId, user, otp);
 
     curl_easy_setopt(curl, CURLOPT_URL, url_str);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, store_auth_str_in_var);
@@ -141,7 +140,6 @@ size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, char 
 
 int check_authentication(const char *user, struct json_object *parsed_auth_str)
 {
-    int retval;
     int retauth;
     int retuser;
     struct json_object *authenticated;

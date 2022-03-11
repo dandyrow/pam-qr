@@ -24,6 +24,7 @@ The license can be found in the root git repo in the LICENSE file.
 /* Include standard library includes */
 #include <syslog.h>
 #include <stdio.h>
+#include <string.h>
 
 /* Include PAM headers */
 #include <security/pam_ext.h>
@@ -54,7 +55,7 @@ int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv);
 int pam_sm_setcred(pam_handle_t *pamh, int flags, int argc, const char **argv);
 int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv);
-char *request_auth_string_from_api(const char *computerId, const char *username, const int otp);
+char *request_auth_string_from_api(const char *authUrl, const char *computerId, const char *user, const int otp);
 size_t store_auth_str_in_var(char *buffer, size_t itemsize, size_t nitems, char **str);
 int check_authentication(const char *user, struct json_object *parsed_auth_str);
 
