@@ -43,12 +43,13 @@ int pam_sm_acct_mgmt(pam_handle_t *pamh, int flags, int argc, const char **argv)
 /* PAM entry point for authentication verification */
 int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **argv)
 {
-    if (argc != 3) {
+    if (argc != 2) {
         pam_prompt(pamh, PAM_ERROR_MSG, NULL, "Configuration Error: Missing arguments, please contact the system administrator.");
         return PAM_AUTHINFO_UNAVAIL;
     }
+
     int retval;
-    const char *user = NULL;
+    const char *user;
     char *encoded_qr_str;
     struct json_object *parsed_auth_str;
 
@@ -61,10 +62,9 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         return retval;
     }
 
-    int otp = t2_get_key((const unsigned char *)argv[1], 0);
     char qr_str[QR_STR_SIZE];
 
-    snprintf(qr_str, QR_STR_SIZE, "{ \"computerId\": \"%s\", \"username\": \"%s\", \"otp\": %i }", argv[0], user, otp);
+    snprintf(qr_str, QR_STR_SIZE, "{ \"computerId\": \"%s\", \"username\": \"%s\" }", argv[0], user);
     encoded_qr_str = gen_qr_str(qr_str);
 
     if (encoded_qr_str == NULL)
@@ -75,10 +75,17 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
     pam_prompt(pamh, PAM_PROMPT_ECHO_ON, NULL, "%sPlease scan the QR with the QR Authenticate App. If the full QR code isn't shown resize the terminal window\n", encoded_qr_str);
 
-    char *auth_str = request_auth_string_from_api(argv[2], argv[0], user, otp);
+    char *auth_str = request_auth_string_from_api(argv[1], argv[0], user);
+    if (auth_str == NULL) {
+        pam_prompt(pamh, PAM_ERROR_MSG, NULL, "Unauthorised. Please contact your admin if you should have authorisation for this computer and account");
+        return PAM_AUTH_ERR;
+    }
     parsed_auth_str = json_tokener_parse(auth_str);
     retval = check_authentication(user, parsed_auth_str);
 
+    if (retval != 0) {
+        pam_prompt(pamh, PAM_PROMPT_ECHO_OFF, NULL, "Unauthorised. Please try again");
+    }
     return (retval);
 }
 
@@ -97,7 +104,7 @@ int pam_sm_chauthtok(pam_handle_t *pamh, int flags, int argc, const char **argv)
     return (PAM_IGNORE);
 }
 
-char* request_auth_string_from_api(const char *authUrl, const char *computerId, const char *user, const int otp)
+char* request_auth_string_from_api(const char *authUrl, const char *computerId, const char *user)
 {
     char *str;
     CURL *curl;
@@ -112,7 +119,7 @@ char* request_auth_string_from_api(const char *authUrl, const char *computerId, 
     }
 
     char url_str[128];
-    snprintf(url_str, 128, "%s/auth?computerId=%s&username=%s&otp=%i", authUrl, computerId, user, otp);
+    snprintf(url_str, 128, "%s/auth?computerId=%s&username=%s", authUrl, computerId, user);
 
     curl_easy_setopt(curl, CURLOPT_URL, url_str);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, store_auth_str_in_var);

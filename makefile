@@ -1,6 +1,6 @@
 CC=gcc
 CFLAGS=-g -Wall -Wextra -fPIC -fstack-protector
-LDLIBS=-l2fa -lqrencode -lcurl -ljson-c
+LDLIBS=-lqrencode -lcurl -ljson-c
 
 # Directories
 SRCDIR=src
