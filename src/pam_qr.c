@@ -62,6 +62,11 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
         return retval;
     }
 
+    if (strncmp(user, "root", 5) == 0) {
+        pam_prompt(pamh, PAM_ERROR_MSG, NULL, "Can't login as root using pam_qr, dropping to password entry");
+        return PAM_AUTH_ERR;
+    }
+
     char qr_str[QR_STR_SIZE];
 
     snprintf(qr_str, QR_STR_SIZE, "{ \"computerId\": \"%s\", \"username\": \"%s\" }", argv[0], user);
@@ -69,7 +74,7 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
     if (encoded_qr_str == NULL)
     {
-        syslog(LOG_ALERT, "Failed to gen QR code");
+        syslog(LOG_ALERT, "Failed to gen QR code, dropping to password entry");
         return PAM_AUTHINFO_UNAVAIL;
     }
 
@@ -77,14 +82,14 @@ int pam_sm_authenticate(pam_handle_t *pamh, int flags, int argc, const char **ar
 
     char *auth_str = request_auth_string_from_api(argv[1], argv[0], user);
     if (auth_str == NULL) {
-        pam_prompt(pamh, PAM_ERROR_MSG, NULL, "Unauthorised. Please contact your admin if you should have authorisation for this computer and account");
+        pam_prompt(pamh, PAM_ERROR_MSG, NULL, "Unauthorised. Please contact your admin if you should have authorisation for this computer and account. Dropping to password entry. To retry QR press enter at password prompt.");
         return PAM_AUTH_ERR;
     }
     parsed_auth_str = json_tokener_parse(auth_str);
     retval = check_authentication(user, parsed_auth_str);
 
     if (retval != 0) {
-        pam_prompt(pamh, PAM_PROMPT_ECHO_OFF, NULL, "Unauthorised. Please try again");
+        pam_prompt(pamh, PAM_ERROR_MSG, NULL, "Unauthorised, dropping to password entry. To retry QR press enter at password prompt");
     }
     return (retval);
 }
@@ -113,7 +118,7 @@ char* request_auth_string_from_api(const char *authUrl, const char *computerId, 
     curl = curl_easy_init();
     if (!curl)
     {
-        syslog(LOG_WARNING, "Curl init failure");
+        syslog(LOG_WARNING, "Curl init failure, dropping to password entry");
         // TODO: Handle curl error
         return NULL;
     }
